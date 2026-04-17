@@ -2,11 +2,11 @@ name: macOS Build
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Allows you to run it manually
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest # Uses GitHub's high-speed Mac runners
+    runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -15,14 +15,20 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true # Speeds up future builds
+          cache: true
 
       - name: Get Dependencies
         run: flutter pub get
 
+      # This step bypasses the need for an Apple Team ID/Certificate
+      - name: Disable Code Signing
+        run: |
+          echo "CODE_SIGNING_ALLOWED=NO" >> macos/Runner/Configs/AppInfo.xcconfig
+          echo "CODE_SIGNING_REQUIRED=NO" >> macos/Runner/Configs/AppInfo.xcconfig
+          echo "CODE_SIGN_IDENTITY=" >> macos/Runner/Configs/AppInfo.xcconfig
+
       - name: Build macOS Release
-        # We use --no-codesign because we don't have Hilton certificates
-        run: flutter build macos --release --no-codesign
+        run: flutter build macos --release
 
       - name: Package App (Zip)
         run: |
