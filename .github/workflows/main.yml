@@ -1,0 +1,36 @@
+name: macOS Build
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allows you to run it manually
+
+jobs:
+  build:
+    runs-on: macos-latest # Uses GitHub's high-speed Mac runners
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true # Speeds up future builds
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Build macOS Release
+        # We use --no-codesign because we don't have Hilton certificates
+        run: flutter build macos --release --no-codesign
+
+      - name: Package App (Zip)
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r hilton_triage_app.zip hilton_triage_app.app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: build/macos/Build/Products/Release/hilton_triage_app.zip
