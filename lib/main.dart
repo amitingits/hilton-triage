@@ -50,6 +50,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     "In Stg": const Color(0xFF06B6D4),
   };
 
+  String? filterStatus;
+  int? sortColumnIndex;
+  bool sortAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +65,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _syncTimer?.cancel();
     super.dispose();
+  }
+
+  List<dynamic> get filteredIssues => filterStatus == null ? issues : issues.where((i) => i['fields']['status']['name'] == filterStatus).toList();
+
+  void _sortIssues() {
+    issues.sort((a, b) {
+      dynamic aVal, bVal;
+      switch (sortColumnIndex) {
+        case 0:
+          aVal = a['key'];
+          bVal = b['key'];
+          break;
+        case 1:
+          aVal = a['fields']['summary'];
+          bVal = b['fields']['summary'];
+          break;
+        case 2:
+          aVal = a['fields']['status']['name'];
+          bVal = b['fields']['status']['name'];
+          break;
+        case 3:
+          aVal = a['fields']['assignee']?['displayName'] ?? "Unassigned";
+          bVal = b['fields']['assignee']?['displayName'] ?? "Unassigned";
+          break;
+        case 4:
+          aVal = DateTime.parse(a['fields']['created']);
+          bVal = DateTime.parse(b['fields']['created']);
+          break;
+        default:
+          return 0;
+      }
+      if (aVal is DateTime && bVal is DateTime) {
+        return sortAscending ? aVal.compareTo(bVal) : bVal.compareTo(aVal);
+      } else {
+        String aStr = aVal.toString();
+        String bStr = bVal.toString();
+        return sortAscending ? aStr.compareTo(bStr) : bStr.compareTo(aStr);
+      }
+    });
   }
 
   // --- 5-MINUTE AUTO SYNC LOGIC ---
@@ -370,31 +413,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Card(
       margin: const EdgeInsets.only(top: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: SizedBox(
-        width: double.infinity,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
-          columnSpacing: 20,
-          columns: const [
-            DataColumn(label: Text("ISSUE KEY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            DataColumn(label: Text("SUMMARY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            DataColumn(label: Text("STATUS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            DataColumn(label: Text("ASSIGNEE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-            DataColumn(label: Text("DATE ADDED", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          ],
-          rows: issues.map((i) {
-            DateTime createdDate = DateTime.parse(i['fields']['created']);
-            String formattedDate = DateFormat('MMM dd, yyyy').format(createdDate);
-            String statusName = i['fields']['status']['name'];
-            return DataRow(cells: [
-              DataCell(Text(i['key'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)), onTap: () => launchUrl(Uri.parse("$jiraUrl/browse/${i['key']}"))),
-              DataCell(SizedBox(width: 250, child: Text(i['fields']['summary'], overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))),
-              DataCell(Text(statusName, style: TextStyle(color: statusColors[statusName] ?? Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))),
-              DataCell(Text(i['fields']['assignee']?['displayName'] ?? "Unassigned", style: const TextStyle(fontSize: 13))),
-              DataCell(Text(formattedDate, style: const TextStyle(color: Colors.grey, fontSize: 13))),
-            ]);
-          }).toList(),
-        ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: filterStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Filter by Status',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text("All")),
+                      ...statusColors.keys.map((s) => DropdownMenuItem(value: s, child: Text(s))),
+                    ],
+                    onChanged: (v) => setState(() => filterStatus = v),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+              columnSpacing: 20,
+              sortColumnIndex: sortColumnIndex,
+              sortAscending: sortAscending,
+              columns: [
+                DataColumn(
+                  label: const Text("ISSUE KEY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onSort: (columnIndex, ascending) {
+                    setState(() {
+                      sortColumnIndex = columnIndex;
+                      sortAscending = ascending;
+                      _sortIssues();
+                    });
+                  },
+                ),
+                DataColumn(
+                  label: const Text("SUMMARY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onSort: (columnIndex, ascending) {
+                    setState(() {
+                      sortColumnIndex = columnIndex;
+                      sortAscending = ascending;
+                      _sortIssues();
+                    });
+                  },
+                ),
+                DataColumn(
+                  label: const Text("STATUS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onSort: (columnIndex, ascending) {
+                    setState(() {
+                      sortColumnIndex = columnIndex;
+                      sortAscending = ascending;
+                      _sortIssues();
+                    });
+                  },
+                ),
+                DataColumn(
+                  label: const Text("ASSIGNEE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onSort: (columnIndex, ascending) {
+                    setState(() {
+                      sortColumnIndex = columnIndex;
+                      sortAscending = ascending;
+                      _sortIssues();
+                    });
+                  },
+                ),
+                DataColumn(
+                  label: const Text("DATE ADDED", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  onSort: (columnIndex, ascending) {
+                    setState(() {
+                      sortColumnIndex = columnIndex;
+                      sortAscending = ascending;
+                      _sortIssues();
+                    });
+                  },
+                ),
+              ],
+              rows: filteredIssues.map((i) {
+                DateTime createdDate = DateTime.parse(i['fields']['created']);
+                String formattedDate = DateFormat('MMM dd, yyyy').format(createdDate);
+                String statusName = i['fields']['status']['name'];
+                return DataRow(cells: [
+                  DataCell(Text(i['key'], style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)), onTap: () => launchUrl(Uri.parse("$jiraUrl/browse/${i['key']}"))),
+                  DataCell(SizedBox(width: 400, child: Text(i['fields']['summary'], overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))),
+                  DataCell(Text(statusName, style: TextStyle(color: statusColors[statusName] ?? Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))),
+                  DataCell(Text(i['fields']['assignee']?['displayName'] ?? "Unassigned", style: const TextStyle(fontSize: 13))),
+                  DataCell(Text(formattedDate, style: const TextStyle(color: Colors.grey, fontSize: 13))),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
